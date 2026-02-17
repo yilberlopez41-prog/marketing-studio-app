@@ -1,24 +1,32 @@
-export const config = {
-  runtime: 'edge', 
-};
+// 🔴 NO AGREGAR "runtime: edge". ESTO ES NODE.JS PURO.
 
-// =========================================================
-// 🔴 BORRA LO QUE HAY Y PEGA TU NUEVA CLAVE AQUÍ 🔴
-// =========================================================
 const API_KEY = "AIzaSyCy91Z4OzUFqtsptGMvQEXL33kBkdMM3oI"; 
-// =========================================================
 
-// Lista de modelos de respaldo (Si falla uno, prueba el otro)
-const MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"];
+export default async function handler(req, res) {
+  // 1. Configuración de CORS (Para que no te bloquee el navegador)
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
 
-export default async function handler(req) {
-  if (req.method !== 'POST') return new Response("Method not allowed", { status: 405 });
+  // 2. Manejo de "Preflight" (Opciones antes del envío)
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  // 3. Solo aceptamos POST
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Método no permitido' });
+  }
 
   try {
-    const body = await req.json();
-    const { action, prompt, base64Image } = body;
+    const { action, prompt, base64Image } = req.body;
 
-    // --- ACCIÓN 1: TEXTO (Con Respaldo Anti-Caídas) ---
+    // --- LÓGICA DE TEXTO ---
     if (action === 'text') {
       const contentsPart = { parts: [{ text: prompt }] };
       
@@ -28,41 +36,31 @@ export default async function handler(req) {
         });
       }
 
-      let lastError = "";
-      
-      // Bucle de intentos: Prueba los modelos en orden
-      for (const model of MODELS_TO_TRY) {
-        try {
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [contentsPart],
-                generationConfig: { responseMimeType: "application/json" }
-              })
-            }
-          );
-
-          if (response.ok) {
-            const data = await response.json();
-            return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } });
-          } else {
-             const err = await response.json();
-             lastError = err.error?.message || response.statusText;
-          }
-        } catch (e) {
-          lastError = e.message;
+      // Intentamos directo con Flash (Más rápido y barato)
+      // Si falla, podrías cambiar a 'gemini-pro'
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [contentsPart],
+            generationConfig: { responseMimeType: "application/json" }
+          })
         }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Error en Google AI");
       }
-      
-      throw new Error(`Todos los modelos fallaron. Último error: ${lastError}`);
+
+      return res.status(200).json(data);
     }
 
-    // --- ACCIÓN 2: IMAGEN ---
+    // --- LÓGICA DE IMAGEN ---
     if (action === 'image') {
-      // Intentamos con Imagen 3 (más estable)
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${API_KEY}`,
         {
@@ -74,19 +72,20 @@ export default async function handler(req) {
           })
         }
       );
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
          throw new Error(data.error?.message || "Error generando imagen");
       }
       
-      return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } });
+      return res.status(200).json(data);
     }
 
-    return new Response("Acción desconocida", { status: 400 });
+    return res.status(400).json({ error: "Acción desconocida" });
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    console.error("Server Error:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
