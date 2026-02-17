@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Marketing Studio AI</title>
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#7c3aed">
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/11698/11698467.png">
+    
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Marketing Studio AI","short_name":"Studio AI","start_url":".","display":"standalone","background_color":"#7c3aed","theme_color":"#7c3aed","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/11698/11698467.png","sizes":"512x512","type":"image/png"}]}'>
+
+    <!-- Librerías -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, Component } = React;
+
+        class ErrorBoundary extends Component {
+            constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+            static getDerivedStateFromError(error) { return { hasError: true, error }; }
+            componentDidCatch(error, errorInfo) { console.error("Crash:", error, errorInfo); }
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div className="min-h-screen flex items-center justify-center bg-red-50 p-6 text-center">
+                            <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md">
+                                <h2 className="text-xl font-bold text-red-600 mb-2">Error de Sistema</h2>
+                                <p className="text-gray-600 text-sm mb-4">Ocurrió un error inesperado.</p>
+                                <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-6 py-2 rounded-full font-bold">Recargar</button>
+                            </div>
+                        </div>
+                    );
+                }
+                return this.props.children; 
+            }
+        }
+
+        const SocialIcon = ({ platform }) => {
+            if (platform === 'instagram') return <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-pink-600"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>;
+            if (platform === 'whatsapp') return <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-green-600"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>;
+            if (platform === 'tiktok') return <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-black"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"></path></svg>;
+            return null;
+        };
+
+        const Icon = ({ name, size = 20, className = "" }) => {
+            const [svgHtml, setSvgHtml] = useState('');
+            useEffect(() => {
+                if (!window.lucide || !window.lucide.icons) return;
+                try {
+                    const camelName = name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('');
+                    const iconNode = window.lucide.icons[camelName] || window.lucide.icons[name];
+                    if (iconNode) {
+                        setSvgHtml(iconNode.toSvg({ width: size, height: size, class: className, "stroke-width": 2 }));
+                    }
+                } catch (e) { console.error(e); }
+            }, [name, size, className]);
+            if (!svgHtml) return <span style={{width: size, height: size, display: 'inline-block'}}></span>;
+            return <span dangerouslySetInnerHTML={{ __html: svgHtml }} style={{ display: 'inline-flex', verticalAlign: 'middle' }} />;
+        };
+
+        const MainApp = () => {
+            const [activeTab, setActiveTab] = useState('generator');
+            const [credits, setCredits] = useState(10); 
+            const [showUpgrade, setShowUpgrade] = useState(false);
+            const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+            // Estados del Generador
+            const [productName, setProductName] = useState('');
+            const [productBenefit, setProductBenefit] = useState('');
+            const [platform, setPlatform] = useState('instagram');
+            const [contentType, setContentType] = useState('post'); 
+            const [tone, setTone] = useState('Divertido');
+            const [referenceImages, setReferenceImages] = useState([]); 
+            const [isGenerating, setIsGenerating] = useState(false);
+            const [result, setResult] = useState(null);
+            const [generatedImage, setGeneratedImage] = useState(null);
+            const [error, setError] = useState(null);
+
+            // Estados del Editor
+            const [image, setImage] = useState(null);
+            const [filters, setFilters] = useState({ brightness: 100, contrast: 100, saturation: 100 });
+            const canvasRef = useRef(null);
+
+            useEffect(() => {
+                if (platform === 'tiktok') setContentType('video');
+                else if (platform === 'instagram') setContentType('post');
+                else setContentType('post');
+            }, [platform]);
+
+            // --- LÓGICA DE COSTOS ---
+            const getCost = () => referenceImages.length > 0 ? 2 : 1;
+
+            const handleReferenceUpload = (e) => {
+                const files = Array.from(e.target.files);
+                if (!files.length) return;
+                const selectedFiles = files.slice(0, 4); 
+                Promise.all(selectedFiles.map(file => {
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(file);
+                    });
+                })).then(imagesBase64 => {
+                    setReferenceImages(prev => [...prev, ...imagesBase64]);
+                });
+            };
+
+            const removeReferenceImage = (index) => {
+                setReferenceImages(prev => prev.filter((_, i) => i !== index));
+            };
+
+            const generateContent = async () => {
+                if (!productName && referenceImages.length === 0) return alert("Escribe qué producto vendes o sube fotos.");
+                
+                const currentCost = getCost();
+                if (credits < currentCost) return setShowUpgrade(true);
+                
+                setIsGenerating(true);
+                setError(null);
+                setResult(null);
+                setGeneratedImage(null);
+
+                try {
+                    let formatInstruction = "";
+                    if (contentType === 'video') formatInstruction = "Formato obligatorio: GUION DE VIDEO (Intro, Desarrollo, Cierre).";
+                    else if (contentType === 'carousel') formatInstruction = `Formato obligatorio: Estructura para CARRUSEL de ${referenceImages.length > 0 ? referenceImages.length : 'varias'} diapositivas. Describe qué texto va en cada imagen aportada.`;
+                    else formatInstruction = "Formato: Copy para POST de imagen única.";
+
+                    const textPrompt = `
+                        Actúa como experto en Marketing.
+                        Estrategia para: ${platform.toUpperCase()}.
+                        Producto: ${productName}. Beneficio: ${productBenefit}. Tono: ${tone}.
+                        ${referenceImages.length > 0 ? `ANALIZA LAS ${referenceImages.length} IMÁGENES ADJUNTAS.` : ''}
+                        ${formatInstruction}
+                        
+                        Responde SOLO UN OBJETO JSON (sin markdown) con esta estructura exacta: 
+                        {"copy": "El contenido (guion, slides o copy con emojis)", "hashtags": "#Etiquetas", "imagePrompt": "Descripción visual detallada en Inglés para generar una FOTO del producto"}
+                    `;
+
+                    // Constuimos el payload para la API
+                    const payload = { 
+                        action: 'text',
+                        prompt: textPrompt,
+                        base64Image: null 
+                    };
+                    
+                    if (referenceImages.length > 0) {
+                        payload.base64Image = referenceImages[0].split(',')[1];
+                    }
+
+                    // LLAMADA AL PUENTE (PROXY)
+                    const response = await fetch('/api/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errText = await response.text();
+                        if (errText.includes("<!DOCTYPE")) throw new Error("Error 404: No encuentro el archivo 'api/generate.js'. Verifica tu GitHub.");
+                        const errJson = JSON.parse(errText);
+                        throw new Error(errJson.error || "Error del Servidor");
+                    }
+
+                    const data = await response.json();
+                    
+                    let text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!text) throw new Error("La IA no respondió nada.");
+
+                    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const jsonStart = text.indexOf('{');
+                    const jsonEnd = text.lastIndexOf('}');
+                    if (jsonStart !== -1 && jsonEnd !== -1) text = text.substring(jsonStart, jsonEnd + 1);
+
+                    setResult(JSON.parse(text));
+                    setCredits(prev => prev - currentCost); 
+
+                } catch (err) {
+                    console.error(err);
+                    setError("Error: " + err.message);
+                } finally {
+                    setIsGenerating(false);
+                }
+            };
+
+            const generateImageAI = async () => {
+                if (!result?.imagePrompt) return alert("Falta descripción visual.");
+                if (credits < 3) return setShowUpgrade(true); 
+
+                setIsGenerating(true);
+                try {
+                    const response = await fetch('/api/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'image',
+                            prompt: result.imagePrompt
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.error);
+
+                    if (data.predictions?.[0]?.bytesBase64Encoded) {
+                        setGeneratedImage(`data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`);
+                        setCredits(prev => prev - 3);
+                    } else {
+                        throw new Error("Imagen vacía.");
+                    }
+                } catch (err) {
+                    alert("Error imagen: " + err.message);
+                } finally {
+                    setIsGenerating(false);
+                }
+            };
+
+            const handleImageUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    setImage(URL.createObjectURL(file));
+                    setFilters({ brightness: 100, contrast: 100, saturation: 100 });
+                }
+            };
+
+            const downloadImage = () => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.src = image;
+                img.onload = () => {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.filter = `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturation}%)`;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const link = document.createElement('a');
+                    link.download = 'foto-editada.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                };
+            };
+
+            return (
+                <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
+                    <nav className="bg-white border-b px-4 py-3 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center text-white shadow-md"><Icon name="sparkles" size={18}/></div>
+                            <span className="font-bold text-lg hidden md:block tracking-tight">Marketing Studio <span className="text-purple-600">AI</span></span>
+                        </div>
+                        <div className="flex bg-slate-100 p-1 rounded-lg">
+                            <button onClick={() => setActiveTab('generator')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'generator' ? 'bg-white text-purple-600 shadow' : 'text-slate-500'}`}>Generar</button>
+                            <button onClick={() => setActiveTab('editor')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'editor' ? 'bg-white text-purple-600 shadow' : 'text-slate-500'}`}>Editar</button>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1 bg-slate-100 px-3 py-1 rounded-full border text-xs font-bold text-slate-600">
+                                <Icon name="zap" size={14} className="text-yellow-500 fill-current"/> {credits}
+                            </div>
+                        </div>
+                    </nav>
+
+                    <div className="flex-1 flex flex-col md:flex-row max-w-7xl mx-auto w-full p-4 gap-6">
+                        {activeTab === 'generator' && (
+                            <>
+                                <div className="w-full md:w-1/3 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
+                                    <div className="space-y-5">
+                                        <div className="border-2 border-dashed border-indigo-100 bg-indigo-50/50 rounded-xl p-4 text-center">
+                                            <input type="file" id="refImage" accept="image/*" multiple onChange={handleReferenceUpload} className="hidden" />
+                                            <label htmlFor="refImage" className="cursor-pointer block">
+                                                <div className="flex flex-col items-center gap-1 text-indigo-400 hover:text-indigo-600 transition-colors">
+                                                    <Icon name="camera" size={20}/>
+                                                    <span className="text-xs font-bold">¿Tienes fotos? (Opcional)</span>
+                                                    <span className="text-[9px]">Sube hasta 4 para carruseles</span>
+                                                </div>
+                                            </label>
+                                            {referenceImages.length > 0 && (
+                                                <div className="mt-3 grid grid-cols-4 gap-2">
+                                                    {referenceImages.map((img, idx) => (
+                                                        <div key={idx} className="relative group">
+                                                            <img src={img} className="h-12 w-full rounded-md object-cover shadow-sm border border-slate-200" />
+                                                            <button onClick={() => removeReferenceImage(idx)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 w-4 h-4 flex items-center justify-center text-[10px] shadow-sm">✕</button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <input value={productName} onChange={e=>setProductName(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Producto (Ej: Zapatos)" />
+                                        <input value={productBenefit} onChange={e=>setProductBenefit(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Beneficio (Ej: Ligeros)" />
+                                        
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {['instagram', 'whatsapp', 'tiktok'].map(p => (
+                                                <button key={p} onClick={() => setPlatform(p)} className={`p-3 border rounded-xl flex flex-col items-center gap-1 ${platform === p ? 'border-purple-500 bg-purple-50' : 'border-slate-200'}`}><SocialIcon platform={p}/><span className="text-[9px] font-bold uppercase">{p}</span></button>
+                                            ))}
+                                        </div>
+
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {['post', 'video', 'carousel'].map(f => (
+                                                <button key={f} onClick={() => setContentType(f)} className={`py-2 text-[10px] font-bold border rounded-lg uppercase ${contentType === f ? 'bg-slate-800 text-white' : 'bg-white'}`}>{f}</button>
+                                            ))}
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['Divertido', 'Profesional', 'Urgente', 'Elegante'].map(t => (
+                                                <button key={t} onClick={() => setTone(t)} className={`py-2 text-xs font-bold border rounded-lg ${tone === t ? 'bg-slate-800 text-white' : 'bg-white'}`}>{t}</button>
+                                            ))}
+                                        </div>
+
+                                        <button onClick={generateContent} disabled={isGenerating || (!productName && referenceImages.length === 0)} className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold shadow-lg active:scale-95 disabled:opacity-50">
+                                            {isGenerating ? <span className="animate-spin"><Icon name="loader-2"/></span> : <Icon name="sparkles" className="fill-current"/>}
+                                            {isGenerating ? 'Creando...' : <span>Generar ({getCost()} Créditos)</span>}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="flex-1">
+                                    {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-4 border border-red-200 text-sm font-bold">{error}</div>}
+                                    {result && (
+                                        <div className="space-y-6 fade-in pb-20">
+                                            <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
+                                                <div className="flex justify-between items-center mb-4 pb-4 border-b">
+                                                    <h3 className="font-bold text-slate-700 text-sm uppercase">Estrategia Generada</h3>
+                                                    <button onClick={() => {navigator.clipboard.writeText(result.copy + "\n" + result.hashtags); alert("Copiado")}} className="text-xs font-bold text-purple-600"><Icon name="copy" size={14}/> Copiar</button>
+                                                </div>
+                                                <p className="whitespace-pre-wrap text-slate-600 text-sm leading-relaxed">{result.copy}</p>
+                                                <p className="text-purple-600 font-bold text-xs mt-4">{result.hashtags}</p>
+                                            </div>
+                                            
+                                            <div className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100">
+                                                <div className="bg-slate-100 rounded-xl min-h-[250px] flex items-center justify-center overflow-hidden relative group">
+                                                    {generatedImage ? (
+                                                        <>
+                                                            <img src={generatedImage} className="w-full h-full object-cover" />
+                                                            <a href={generatedImage} download="imagen-ai.png" className="absolute bottom-4 bg-white text-slate-900 px-4 py-2 rounded-full font-bold shadow-xl text-xs flex gap-2"><Icon name="download" size={14}/> Descargar</a>
+                                                        </>
+                                                    ) : (
+                                                        <div className="text-center p-8">
+                                                            <p className="text-xs text-slate-400 uppercase mb-2 font-bold">Sugerencia Visual</p>
+                                                            <p className="text-sm text-slate-500 italic mb-6">"{result.imagePrompt.slice(0, 100)}..."</p>
+                                                            <button onClick={generateImageAI} disabled={isGenerating} className="bg-slate-900 text-white px-6 py-2 rounded-full font-bold text-xs shadow-xl">
+                                                                {isGenerating ? "Pintando..." : "Generar Imagen Real (3 Cr)"}
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                        
+                        {activeTab === 'editor' && (
+                            <div className="w-full h-[80vh] flex flex-col md:flex-row bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden fade-in">
+                                <div className="w-full md:w-80 border-r p-6 bg-white overflow-y-auto z-10">
+                                    <h3 className="font-bold text-slate-700 mb-6 flex gap-2 items-center"><Icon name="sliders" className="text-purple-600"/> Ajustes</h3>
+                                    {!image ? (
+                                        <div className="border-2 border-dashed border-slate-200 rounded-xl p-10 text-center bg-slate-50 h-64 flex flex-col justify-center items-center">
+                                            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" id="upload"/>
+                                            <label htmlFor="upload" className="cursor-pointer group">
+                                                <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform"><Icon name="upload" size={24}/></div>
+                                                <span className="text-sm font-bold text-slate-600 block">Subir una foto</span>
+                                            </label>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-6">
+                                            <div className="space-y-4">
+                                                {['brightness', 'contrast', 'saturation'].map(f => (
+                                                    <div key={f}><div className="flex justify-between text-xs font-bold text-slate-500 mb-1 capitalize"><span>{f}</span><span>{filters[f]}%</span></div><input type="range" min="0" max="200" value={filters[f]} onChange={e=>setFilters({...filters, [f]: e.target.value})} className="w-full h-2 bg-slate-200 rounded-lg accent-purple-600"/></div>
+                                                ))}
+                                            </div>
+                                            <div className="grid grid-cols-3 gap-2 pt-4 border-t">
+                                                <button onClick={()=>setFilters({brightness:110, contrast:110, saturation:130})} className="bg-orange-50 text-orange-600 p-2 rounded-lg text-[10px] font-bold border border-orange-100">🍔</button>
+                                                <button onClick={()=>setFilters({brightness:105, contrast:95, saturation:100})} className="bg-pink-50 text-pink-600 p-2 rounded-lg text-[10px] font-bold border border-pink-100">👗</button>
+                                                <button onClick={()=>setFilters({brightness:130, contrast:120, saturation:90})} className="bg-blue-50 text-blue-600 p-2 rounded-lg text-[10px] font-bold border border-blue-100">🌙</button>
+                                            </div>
+                                            <button onClick={downloadImage} className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-lg mt-4 flex justify-center gap-2"><Icon name="download" size={14}/> Descargar</button>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex-1 bg-slate-100 flex items-center justify-center p-8 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] overflow-hidden">
+                                    {image ? <img src={image} style={{filter: `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturation}%)`}} className="max-h-[75vh] object-contain shadow-2xl rounded-lg border-4 border-white"/> : <div className="opacity-50">Vista Previa</div>}
+                                    <canvas ref={canvasRef} className="hidden"/>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {showUpgrade && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 fade-in">
+                            <div className="bg-white p-8 rounded-3xl max-w-sm text-center relative shadow-2xl">
+                                <button onClick={()=>setShowUpgrade(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><Icon name="x"/></button>
+                                <div className="w-20 h-20 bg-yellow-50 rounded-full flex items-center justify-center mx-auto mb-6 text-yellow-500 border-4 border-yellow-100"><Icon name="zap" size={40} className="fill-current"/></div>
+                                <h3 className="font-bold text-2xl mb-2 text-slate-800">¡Ups! Sin créditos</h3>
+                                <p className="text-sm text-slate-500 mb-8 leading-relaxed">Te has quedado sin energía creativa. Recarga para seguir generando contenido mágico.</p>
+                                <button className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold shadow-xl hover:scale-105 transition-transform" onClick={()=>window.open('https://wa.me/58XXXXXXXX?text=Hola,%20quiero%20recargar%20créditos%20para%20StudioAI', '_blank')}>Recargar por WhatsApp</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ErrorBoundary><MainApp /></ErrorBoundary>);
+    </script>
+</body>
+</html>
