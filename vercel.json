@@ -1,5 +1,9 @@
 {
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
-  ]
+  "name": "marketing-ai-app",
+  "version": "1.0.0",
+  "description": "App de marketing con IA",
+  "main": "index.html",
+  "dependencies": {
+    "@google/generative-ai": "^0.1.3"
+  }
 }
