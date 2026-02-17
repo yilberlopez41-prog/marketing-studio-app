@@ -1,6 +1,3 @@
-// api/server.js
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 export default async function handler(req, res) {
   // 1. Configurar CORS para permitir que tu frontend hable con esta función
   res.setHeader('Access-Control-Allow-Credentials', true);
