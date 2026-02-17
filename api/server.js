@@ -3,7 +3,7 @@ export const config = {
 };
 
 // =========================================================
-// 🔴 PEGA TU API KEY REAL AQUÍ ABAJO (DENTRO DE LAS COMILLAS) 🔴
+// 🔴 BORRA LO QUE HAY Y PEGA TU NUEVA CLAVE AQUÍ 🔴
 // =========================================================
 const API_KEY = "AIzaSyCy91Z4OzUFqtsptGMvQEXL33kBkdMM3oI"; 
 // =========================================================
