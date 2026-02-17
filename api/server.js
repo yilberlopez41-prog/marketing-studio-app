@@ -5,7 +5,7 @@ export const config = {
 // =========================================================
 // 🔴 PEGA TU API KEY REAL AQUÍ ABAJO (DENTRO DE LAS COMILLAS) 🔴
 // =========================================================
-const API_KEY = "AIzaSyAGYJsGKXMUV81Z0O4eL0f_C_J3d67mDBc"; 
+const API_KEY = "AIzaSyCy91Z4OzUFqtsptGMvQEXL33kBkdMM3oI"; 
 // =========================================================
 
 // Lista de modelos de respaldo (Si falla uno, prueba el otro)
